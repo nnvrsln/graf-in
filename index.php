@@ -1,11 +1,63 @@
-<?php declare(strict_types=1); $config = require __DIR__ . '/config/config.php'; require __DIR__ . '/app/database.php'; require __DIR__ . '/app/cars.php'; $pdo = dbConnect($config['db']); ensureCarsCategorySchema($pdo); $catalogPreviewCars = fetchCatalogPreviewCars($pdo, 6); $totalCarsCount = countActiveCars($pdo); $contacts = $config['contacts']; $widgets = $config['widgets'] ?? []; $yandexReviewsSrc = (string) ($widgets['yandex_reviews_src'] ?? ''); function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); } function formatPrice(int $price): string { return number_format($price, 0, '.', ' '); } ?>
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/app/site_settings.php';
+$config = siteLoadConfig(__DIR__ . '/config/config.php');
+require __DIR__ . '/app/database.php';
+require __DIR__ . '/app/cars.php';
+
+$pdo = dbConnect($config['db']);
+ensureCarsCategorySchema($pdo);
+
+$catalogPreviewCars = fetchCatalogPreviewCars($pdo, 6);
+$totalCarsCount = countActiveCars($pdo);
+
+$contacts = $config['contacts'];
+$bookingCta = siteBuildBookingCta($config);
+$widgets = $config['widgets'] ?? [];
+$yandexReviewsSrc = (string) ($widgets['yandex_reviews_src'] ?? '');
+$seo = siteResolvePageSeo($config, 'index');
+
+function e(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function formatPrice(int $price): string
+{
+    return number_format($price, 0, '.', ' ');
+}
+?>
 <!DOCTYPE html>
 <html lang="ru">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RentalCar — Прокат автомобилей</title>
+    <link rel="shortcut icon" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="manifest" href="/assets/site.webmanifest">
+    <meta name="theme-color" content="#111827">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="DadaevCAR">
+    <meta name="description" content="<?= e((string) $seo['description']) ?>">
+    <?php if (trim((string) $seo['keywords']) !== ''): ?>
+    <meta name="keywords" content="<?= e((string) $seo['keywords']) ?>">
+    <?php endif; ?>
+    <meta name="robots" content="<?= e((string) $seo['robots']) ?>">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ru_RU">
+    <meta property="og:site_name" content="DadaevCAR">
+    <meta property="og:title" content="<?= e((string) $seo['title']) ?>">
+    <meta property="og:description" content="<?= e((string) $seo['description']) ?>">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?= e((string) $seo['title']) ?>">
+    <meta name="twitter:description" content="<?= e((string) $seo['description']) ?>">
+    <title><?= e((string) $seo['title']) ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -152,11 +204,12 @@
                                 <div class="spec"> <?= e(number_format((float) $car['engine_volume'], 1, '.', '')) ?> л
                                 </div>
                                 <div class="spec"> <?= e((string) $car['drive_type']) ?> привод</div>
+                                <div class="spec"> <?= e((string) $car['fuel_type']) ?></div>
                                 <div class="spec"> <?= e((string) $car['category']) ?></div>
                             </div>
                             <div class="card-footer">
                                 <div class="price-group"> <strong><?= e(formatPrice((int) $car['price_per_day'])) ?>
-                                        ₽</strong> <span>за сутки</span> </div> <a class="rent-btn" href="<?= e($contacts['whatsapp_link']) ?>" target="_blank" rel="noopener">📩 Забронировать</a>
+                                        ₽</strong> <span>за сутки</span> </div> <a class="rent-btn" href="<?= e((string) $bookingCta['href']) ?>"<?= (string) $bookingCta['target'] !== '' ? ' target="' . e((string) $bookingCta['target']) . '"' : '' ?><?= (string) $bookingCta['rel'] !== '' ? ' rel="' . e((string) $bookingCta['rel']) . '"' : '' ?>>📩 Забронировать</a>
                             </div>
                         </div>
                     </article> <?php endforeach; ?> </div> <?php if (count($catalogPreviewCars) === 0): ?> <p class="section-text"

@@ -6,7 +6,7 @@ function fetchCars(PDO $pdo, ?string $category = null, int $limit = 50): array
 {
     $limit = max(1, min($limit, 200));
 
-    $sql = 'SELECT id, category, name, description, engine_volume, drive_type, price_per_day, image_url, is_rented, rent_end_at,
+    $sql = 'SELECT id, category, name, description, engine_volume, drive_type, fuel_type, price_per_day, image_url, is_rented, rent_end_at,
                    CASE WHEN is_rented = 1 AND rent_end_at IS NOT NULL AND rent_end_at > NOW() THEN 1 ELSE 0 END AS rent_active
             FROM cars
             WHERE is_active = 1';
@@ -18,13 +18,14 @@ function fetchCars(PDO $pdo, ?string $category = null, int $limit = 50): array
         $params['category'] = $category;
     }
 
-    $sql .= ' ORDER BY rent_active DESC, rent_end_at ASC, id DESC LIMIT ' . $limit;
+    $sql .= ' ORDER BY id DESC LIMIT ' . $limit;
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 
     return $stmt->fetchAll();
 }
+
 function countActiveCars(PDO $pdo): int
 {
     $stmt = $pdo->query('SELECT COUNT(*) FROM cars WHERE is_active = 1');
@@ -37,7 +38,7 @@ function fetchCatalogPreviewCars(PDO $pdo, int $limit = 6): array
     $limit = max(1, min($limit, 12));
 
     $cars = $pdo->query(
-        'SELECT id, category, name, description, engine_volume, drive_type, price_per_day, image_url
+        'SELECT id, category, name, description, engine_volume, drive_type, fuel_type, price_per_day, image_url
          FROM cars
          WHERE is_active = 1
          ORDER BY id DESC'
@@ -47,7 +48,7 @@ function fetchCatalogPreviewCars(PDO $pdo, int $limit = 6): array
         return [];
     }
 
-    $categoryOrder = ['Премиум', 'Внедорожники', 'Бизнес', 'Седаны', 'Минивэны'];
+    $categoryOrder = carsCategoryList();
     $selected = [];
     $selectedIds = [];
 
@@ -131,6 +132,7 @@ function carsHasColumn(PDO $pdo, string $column): bool
            AND COLUMN_NAME = :column
          LIMIT 1'
     );
+
     $stmt->execute([
         'table' => 'cars',
         'column' => $column,
@@ -139,80 +141,69 @@ function carsHasColumn(PDO $pdo, string $column): bool
     return (bool) $stmt->fetchColumn();
 }
 
+function carsEnumSql(array $values): string
+{
+    return implode(', ', array_map(static function (string $value): string {
+        return "'" . str_replace("'", "''", $value) . "'";
+    }, $values));
+}
+
 function ensureCarsCategorySchema(PDO $pdo): void
 {
-    $categoryColumn = $pdo->query("SHOW COLUMNS FROM cars LIKE 'category'")->fetch();
-    if (!$categoryColumn) {
+    if (!carsHasColumn($pdo, 'category')) {
         return;
     }
 
-    $hasCarClass = carsHasColumn($pdo, 'car_class');
-
-    $legacyCategories = [
-        'Внедорожник', 'Седан', 'Пикап', 'Кроссовер', 'Купе', 'Хэтчбек', 'Минивэн',
-        'Р’РЅРµРґРѕСЂРѕР¶РЅРёРє', 'РЎРµРґР°РЅ', 'РџРёРєР°Рї', 'РљСЂРѕСЃСЃРѕРІРµСЂ', 'РљСѓРїРµ', 'РҐСЌС‚С‡Р±РµРє', 'РњРёРЅРёРІСЌРЅ',
-    ];
-    $targetCategories = [
-        'Премиум', 'Внедорожники', 'Бизнес', 'Седаны', 'Минивэны',
-        'РџСЂРµРјРёСѓРј', 'Р’РЅРµРґРѕСЂРѕР¶РЅРёРєРё', 'Р‘РёР·РЅРµСЃ', 'РЎРµРґР°РЅС‹', 'РњРёРЅРёРІСЌРЅС‹',
-    ];
-
-    $enumForMigration = array_unique(array_merge($targetCategories, $legacyCategories));
-    $enumSql = "'" . implode("','", array_map(static function (string $v): string {
-        return str_replace("'", "''", $v);
-    }, $enumForMigration)) . "'";
-
-    $pdo->exec("ALTER TABLE cars MODIFY category ENUM($enumSql) NOT NULL");
-
-    if ($hasCarClass) {
-        $carClassEnumSql = "'" . implode("','", array_map(static function (string $v): string {
-            return str_replace("'", "''", $v);
-        }, $targetCategories)) . "'";
-
-        $pdo->exec("ALTER TABLE cars MODIFY car_class ENUM($carClassEnumSql) NULL");
-
-        $pdo->exec(
-            "UPDATE cars
-             SET category = CASE
-                WHEN car_class IN ('Премиум', 'РџСЂРµРјРёСѓРј') THEN 'Премиум'
-                WHEN car_class IN ('Внедорожники', 'Р’РЅРµРґРѕСЂРѕР¶РЅРёРєРё') THEN 'Внедорожники'
-                WHEN car_class IN ('Бизнес', 'Р‘РёР·РЅРµСЃ') THEN 'Бизнес'
-                WHEN car_class IN ('Седаны', 'РЎРµРґР°РЅС‹') THEN 'Седаны'
-                WHEN car_class IN ('Минивэны', 'РњРёРЅРёРІСЌРЅС‹') THEN 'Минивэны'
-
-                WHEN category IN ('Внедорожник', 'Кроссовер', 'Пикап', 'Р’РЅРµРґРѕСЂРѕР¶РЅРёРє', 'РљСЂРѕСЃСЃРѕРІРµСЂ', 'РџРёРєР°Рї', 'Внедорожники', 'Р’РЅРµРґРѕСЂРѕР¶РЅРёРєРё') THEN 'Внедорожники'
-                WHEN category IN ('Купе', 'Премиум', 'РљСѓРїРµ', 'РџСЂРµРјРёСѓРј') THEN 'Премиум'
-                WHEN category IN ('Минивэн', 'Минивэны', 'РњРёРЅРёРІСЌРЅ', 'РњРёРЅРёРІСЌРЅС‹') THEN 'Минивэны'
-                WHEN category IN ('Бизнес', 'Р‘РёР·РЅРµСЃ') THEN 'Бизнес'
-                WHEN category IN ('Седаны', 'РЎРµРґР°РЅС‹') THEN 'Седаны'
-                WHEN category IN ('Седан', 'Хэтчбек', 'РЎРµРґР°РЅ', 'РҐСЌС‚С‡Р±РµРє') AND price_per_day >= 15000 THEN 'Премиум'
-                WHEN category IN ('Седан', 'Хэтчбек', 'РЎРµРґР°РЅ', 'РҐСЌС‚С‡Р±РµРє') AND price_per_day >= 8500 THEN 'Бизнес'
-                WHEN category IN ('Седан', 'Хэтчбек', 'РЎРµРґР°РЅ', 'РҐСЌС‚С‡Р±РµРє') THEN 'Седаны'
-                ELSE 'Седаны'
-             END"
-        );
-
+    if (carsHasColumn($pdo, 'car_class')) {
+        $pdo->exec("UPDATE cars SET category = COALESCE(NULLIF(TRIM(category), ''), car_class)");
         $pdo->exec('ALTER TABLE cars DROP COLUMN car_class');
-    } else {
-        $pdo->exec(
-            "UPDATE cars
-             SET category = CASE
-                WHEN category IN ('Премиум', 'РџСЂРµРјРёСѓРј', 'Купе', 'РљСѓРїРµ') THEN 'Премиум'
-                WHEN category IN ('Внедорожники', 'Р’РЅРµРґРѕСЂРѕР¶РЅРёРєРё', 'Внедорожник', 'Кроссовер', 'Пикап', 'Р’РЅРµРґРѕСЂРѕР¶РЅРёРє', 'РљСЂРѕСЃСЃРѕРІРµСЂ', 'РџРёРєР°Рї') THEN 'Внедорожники'
-                WHEN category IN ('Бизнес', 'Р‘РёР·РЅРµСЃ') THEN 'Бизнес'
-                WHEN category IN ('Минивэны', 'Минивэн', 'РњРёРЅРёРІСЌРЅС‹', 'РњРёРЅРёРІСЌРЅ') THEN 'Минивэны'
-                WHEN category IN ('Седаны', 'РЎРµРґР°РЅС‹') THEN 'Седаны'
-                WHEN category IN ('Седан', 'Хэтчбек', 'РЎРµРґР°РЅ', 'РҐСЌС‚С‡Р±РµРє') AND price_per_day >= 15000 THEN 'Премиум'
-                WHEN category IN ('Седан', 'Хэтчбек', 'РЎРµРґР°РЅ', 'РҐСЌС‚С‡Р±РµРє') AND price_per_day >= 8500 THEN 'Бизнес'
-                WHEN category IN ('Седан', 'Хэтчбек', 'РЎРµРґР°РЅ', 'РҐСЌС‚С‡Р±РµРє') THEN 'Седаны'
-                ELSE 'Седаны'
-             END"
-        );
     }
 
+    $pdo->exec('ALTER TABLE cars MODIFY category VARCHAR(64) NOT NULL');
+
     $pdo->exec(
-        "ALTER TABLE cars
-         MODIFY category ENUM('Премиум', 'Внедорожники', 'Бизнес', 'Седаны', 'Минивэны') NOT NULL"
+        "UPDATE cars
+         SET category = CASE
+            WHEN category IN ('Премиум', 'Купе') THEN 'Премиум'
+            WHEN category IN ('Внедорожники', 'Внедорожник', 'Кроссовер', 'Пикап') THEN 'Внедорожники'
+            WHEN category IN ('Бизнес') THEN 'Бизнес'
+            WHEN category IN ('Седаны') THEN 'Седаны'
+            WHEN category IN ('Минивэны', 'Минивэн') THEN 'Минивэны'
+            WHEN category IN ('Седан', 'Хэтчбек') AND price_per_day >= 15000 THEN 'Премиум'
+            WHEN category IN ('Седан', 'Хэтчбек') AND price_per_day >= 8500 THEN 'Бизнес'
+            WHEN category IN ('Седан', 'Хэтчбек') THEN 'Седаны'
+            ELSE 'Седаны'
+         END"
+    );
+
+    $pdo->exec(
+        'ALTER TABLE cars MODIFY category ENUM(' . carsEnumSql(carsCategoryList()) . ") NOT NULL DEFAULT 'Седаны'"
+    );
+
+    ensureCarsFuelTypeSchema($pdo);
+}
+
+function ensureCarsFuelTypeSchema(PDO $pdo): void
+{
+    if (!carsHasColumn($pdo, 'fuel_type')) {
+        $pdo->exec("ALTER TABLE cars ADD COLUMN fuel_type VARCHAR(32) NULL AFTER drive_type");
+    }
+
+    $pdo->exec('ALTER TABLE cars MODIFY fuel_type VARCHAR(32) NULL');
+
+    $pdo->exec(
+        "UPDATE cars
+         SET fuel_type = CASE
+            WHEN fuel_type IS NULL OR TRIM(fuel_type) = '' THEN 'Бензин'
+            WHEN LOWER(TRIM(fuel_type)) IN ('бензин', 'gasoline', 'petrol') THEN 'Бензин'
+            WHEN LOWER(TRIM(fuel_type)) IN ('гбо', 'lpg', 'cng') THEN 'ГБО'
+            WHEN LOWER(TRIM(fuel_type)) IN ('дизель', 'diesel') THEN 'Дизель'
+            ELSE 'Бензин'
+         END"
+    );
+
+    $pdo->exec(
+        'ALTER TABLE cars MODIFY fuel_type ENUM(' . carsEnumSql(carsFuelTypeList()) . ") NOT NULL DEFAULT 'Бензин'"
     );
 }
 
@@ -262,4 +253,119 @@ function formatRentEnd(?string $rentEndAt): string
     }
 
     return date('d.m H:i', $rentEndTs);
+}
+
+function carsCategoryList(): array
+{
+    return ['Премиум', 'Внедорожники', 'Бизнес', 'Седаны', 'Минивэны'];
+}
+
+function carsDriveTypeList(): array
+{
+    return ['Передний', 'Задний', 'Полный'];
+}
+
+function carsFuelTypeList(): array
+{
+    return ['Бензин', 'ГБО', 'Дизель'];
+}
+
+function fetchCarsForAdmin(PDO $pdo, ?string $search = null, ?string $category = null): array
+{
+    $sql = 'SELECT id, category, name, description, engine_volume, drive_type, fuel_type, price_per_day, image_url, is_active, created_at, updated_at
+            FROM cars
+            WHERE 1 = 1';
+
+    $params = [];
+
+    if ($search !== null && $search !== '') {
+        $sql .= ' AND (name LIKE :search_name OR description LIKE :search_description)';
+        $params['search_name'] = '%' . $search . '%';
+        $params['search_description'] = '%' . $search . '%';
+    }
+
+    if ($category !== null && $category !== '') {
+        $sql .= ' AND category = :category';
+        $params['category'] = $category;
+    }
+
+    $sql .= ' ORDER BY id DESC';
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    return $stmt->fetchAll();
+}
+
+function findCarById(PDO $pdo, int $id): ?array
+{
+    $stmt = $pdo->prepare(
+        'SELECT id, category, name, description, engine_volume, drive_type, fuel_type, price_per_day, image_url, is_active, created_at, updated_at
+         FROM cars
+         WHERE id = :id
+         LIMIT 1'
+    );
+
+    $stmt->execute(['id' => $id]);
+    $car = $stmt->fetch();
+
+    return is_array($car) ? $car : null;
+}
+
+function createCar(PDO $pdo, array $data): int
+{
+    $stmt = $pdo->prepare(
+        'INSERT INTO cars (category, name, description, engine_volume, drive_type, fuel_type, price_per_day, image_url, is_active)
+         VALUES (:category, :name, :description, :engine_volume, :drive_type, :fuel_type, :price_per_day, :image_url, :is_active)'
+    );
+
+    $stmt->execute([
+        'category' => $data['category'],
+        'name' => $data['name'],
+        'description' => $data['description'],
+        'engine_volume' => $data['engine_volume'],
+        'drive_type' => $data['drive_type'],
+        'fuel_type' => $data['fuel_type'],
+        'price_per_day' => $data['price_per_day'],
+        'image_url' => $data['image_url'],
+        'is_active' => $data['is_active'],
+    ]);
+
+    return (int) $pdo->lastInsertId();
+}
+
+function updateCar(PDO $pdo, int $id, array $data): void
+{
+    $stmt = $pdo->prepare(
+        'UPDATE cars
+         SET category = :category,
+             name = :name,
+             description = :description,
+             engine_volume = :engine_volume,
+             drive_type = :drive_type,
+             fuel_type = :fuel_type,
+             price_per_day = :price_per_day,
+             image_url = :image_url,
+             is_active = :is_active
+         WHERE id = :id'
+    );
+
+    $stmt->execute([
+        'id' => $id,
+        'category' => $data['category'],
+        'name' => $data['name'],
+        'description' => $data['description'],
+        'engine_volume' => $data['engine_volume'],
+        'drive_type' => $data['drive_type'],
+        'fuel_type' => $data['fuel_type'],
+        'price_per_day' => $data['price_per_day'],
+        'image_url' => $data['image_url'],
+        'is_active' => $data['is_active'],
+    ]);
+}
+
+function deleteCarById(PDO $pdo, int $id): void
+{
+    $stmt = $pdo->prepare('DELETE FROM cars WHERE id = :id');
+    $stmt->execute(['id' => $id]);
 }

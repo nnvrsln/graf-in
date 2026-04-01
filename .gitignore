@@ -23,3 +23,10 @@ openserver/
 # Dependencies / build
 node_modules/
 vendor/
+
+# Uploaded car photos
+assets/uploads/cars/*
+!assets/uploads/cars/.gitkeep
+
+# Local archive
+invest.zip

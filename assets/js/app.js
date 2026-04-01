@@ -103,23 +103,51 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateSiteNavState();
             });
 
+            function scrollToHashTarget(hash, smooth) {
+                if (!hash || hash === '#') {
+                    return;
+                }
+
+                const target = document.querySelector(hash);
+                if (!target) {
+                    return;
+                }
+
+                const navOffset = siteNav ? (siteNav.offsetHeight + 8) : 0;
+                const top = Math.max(0, target.getBoundingClientRect().top + window.pageYOffset - navOffset);
+                window.scrollTo({
+                    top: top,
+                    behavior: smooth ? 'smooth' : 'auto'
+                });
+            }
+
             document.querySelectorAll('a[href^="#"]').forEach(function (link) {
                 link.addEventListener('click', function (event) {
-                    const target = document.querySelector(this.getAttribute('href'));
+                    const hash = this.getAttribute('href');
+                    const target = hash ? document.querySelector(hash) : null;
                     if (!target) {
                         return;
                     }
 
                     event.preventDefault();
                     closeSiteNav();
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    scrollToHashTarget(hash, true);
                 });
             });
 
-            const bookedCards = document.querySelectorAll('[data-minutes]');
+            if (window.location.hash) {
+                const initialHash = window.location.hash;
+                window.setTimeout(function () {
+                    scrollToHashTarget(initialHash, false);
+                    updateSiteNavState();
+                }, 40);
 
-            
-           
+                window.addEventListener('load', function () {
+                    scrollToHashTarget(initialHash, false);
+                    updateSiteNavState();
+                }, { once: true });
+            }
+
 
             const heroCarousel = document.getElementById('heroCarousel');
             const heroSlides = Array.from(document.querySelectorAll('.hero-slide'));

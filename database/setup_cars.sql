@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS `cars`;
 
 CREATE TABLE `cars` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `category` ENUM('Внедорожник', 'Седан', 'Пикап', 'Кроссовер', 'Купе', 'Хэтчбек') NOT NULL,
+    `category` ENUM('Премиум', 'Внедорожники', 'Бизнес', 'Седаны', 'Минивэны') NOT NULL,
     `name` VARCHAR(120) NOT NULL,
     `description` TEXT NOT NULL,
     `engine_volume` DECIMAL(3,1) NOT NULL,
@@ -29,12 +29,13 @@ CREATE TABLE `cars` (
 TRUNCATE TABLE `cars`;
 
 INSERT INTO `cars` (`category`, `name`, `description`, `engine_volume`, `drive_type`, `price_per_day`, `image_url`, `is_rented`, `rent_end_at`) VALUES
-('Внедорожник', 'Toyota Land Cruiser 300', 'Максимальный комфорт для дальних поездок по трассе и горным маршрутам.', 3.5, 'Полный', 16500, 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=1200&q=80', 1, DATE_ADD(NOW(), INTERVAL 1 DAY)),
-('Седан', 'Toyota Camry', 'Универсальный седан для города и междугородних поездок с мягким ходом.', 2.5, 'Передний', 6500, 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80', 0, NULL),
-('Пикап', 'Ford F-150', 'Надежный пикап для активного отдыха, перевозки снаряжения и выездов за город.', 3.5, 'Полный', 14500, 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80', 1, DATE_ADD(NOW(), INTERVAL 6 HOUR)),
-('Седан', 'Hyundai Elantra', 'Экономичный и комфортный автомобиль для ежедневных маршрутов.', 2.0, 'Передний', 5200, 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1200&q=80', 0, NULL),
-('Кроссовер', 'BMW X5', 'Премиальный кроссовер с отличной динамикой и высоким уровнем безопасности.', 3.0, 'Полный', 14000, 'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1200&q=80', 1, DATE_ADD(NOW(), INTERVAL 3 DAY)),
-('Купе', 'Mercedes-Benz C Coupe', 'Стильное купе для тех, кто ценит драйв и выразительный внешний вид.', 2.0, 'Задний', 11000, 'https://images.unsplash.com/photo-1549399542-7e82138f1a26?auto=format&fit=crop&w=1200&q=80', 0, NULL),
-('Хэтчбек', 'Volkswagen Golf', 'Практичный компактный хэтчбек с удобной посадкой и маневренностью.', 1.4, 'Передний', 5800, 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?auto=format&fit=crop&w=1200&q=80', 0, NULL),
-('Внедорожник', 'Mitsubishi Pajero Sport', 'Рамный внедорожник для уверенного движения по сложным дорогам.', 2.4, 'Полный', 11800, 'https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80', 0, NULL),
-('Седан', 'Porsche Panamera', 'Быстрый и статусный седан для деловых поездок и особых случаев.', 2.9, 'Полный', 18500, 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80', 0, NULL);
+('Премиум', 'Toyota Land Cruiser 300', 'Максимальный комфорт для дальних поездок по трассе и горным маршрутам.', 3.5, 'Полный', 16500, 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=1200&q=80', 1, DATE_ADD(NOW(), INTERVAL 1 DAY)),
+('Бизнес', 'Toyota Camry', 'Универсальный седан для города и междугородних поездок с мягким ходом.', 2.5, 'Передний', 6500, 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80', 0, NULL),
+('Внедорожники', 'Ford F-150', 'Надежный автомобиль для активного отдыха, перевозки снаряжения и выездов за город.', 3.5, 'Полный', 14500, 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80', 1, DATE_ADD(NOW(), INTERVAL 6 HOUR)),
+('Седаны', 'Hyundai Elantra', 'Экономичный и комфортный автомобиль для ежедневных маршрутов.', 2.0, 'Передний', 5200, 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1200&q=80', 0, NULL),
+('Премиум', 'BMW X5', 'Премиальный автомобиль с отличной динамикой и высоким уровнем безопасности.', 3.0, 'Полный', 14000, 'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1200&q=80', 1, DATE_ADD(NOW(), INTERVAL 3 DAY)),
+('Премиум', 'Mercedes-Benz C Coupe', 'Стильный автомобиль для тех, кто ценит драйв и выразительный внешний вид.', 2.0, 'Задний', 11000, 'https://images.unsplash.com/photo-1549399542-7e82138f1a26?auto=format&fit=crop&w=1200&q=80', 0, NULL),
+('Седаны', 'Volkswagen Golf', 'Практичный компактный автомобиль с удобной посадкой и маневренностью.', 1.4, 'Передний', 5800, 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?auto=format&fit=crop&w=1200&q=80', 0, NULL),
+('Внедорожники', 'Mitsubishi Pajero Sport', 'Надежный автомобиль для уверенного движения по сложным дорогам.', 2.4, 'Полный', 11800, 'https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80', 0, NULL),
+('Премиум', 'Porsche Panamera', 'Быстрый и статусный автомобиль для деловых поездок и особых случаев.', 2.9, 'Полный', 18500, 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80', 0, NULL),
+('Минивэны', 'Hyundai Staria', 'Вместительный автомобиль для семейных поездок и путешествий компанией.', 3.5, 'Передний', 9800, 'https://images.unsplash.com/photo-1677482200485-b95f671f5b5f?auto=format&fit=crop&w=1200&q=80', 0, NULL);

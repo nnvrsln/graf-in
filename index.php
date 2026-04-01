@@ -1,4 +1,4 @@
-<?php declare(strict_types=1); $config = require __DIR__ . '/config/config.php'; require __DIR__ . '/app/database.php'; require __DIR__ . '/app/cars.php'; $pdo = dbConnect($config['db']); $cars = fetchCars($pdo); $contacts = $config['contacts']; function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); } function formatPrice(int $price): string { return number_format($price, 0, '.', ' '); } ?>
+<?php declare(strict_types=1); $config = require __DIR__ . '/config/config.php'; require __DIR__ . '/app/database.php'; require __DIR__ . '/app/cars.php'; $pdo = dbConnect($config['db']); ensureCarsCategorySchema($pdo); $catalogPreviewCars = fetchCatalogPreviewCars($pdo, 6); $totalCarsCount = countActiveCars($pdo); $contacts = $config['contacts']; $widgets = $config['widgets'] ?? []; $yandexReviewsSrc = (string) ($widgets['yandex_reviews_src'] ?? ''); function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); } function formatPrice(int $price): string { return number_format($price, 0, '.', ' '); } ?>
 <!DOCTYPE html>
 <html lang="ru">
 
@@ -30,6 +30,8 @@
                     <ul class="site-nav-menu">
                         <li><a class="site-nav-link" href="#advantages">✨ Преимущества</a></li>
                         <li><a class="site-nav-link" href="#catalog">🚗 Каталог</a></li>
+                        <li><a class="site-nav-link" href="#reviews">📝 Отзывы</a></li>
+                        <li><a class="site-nav-link" href="#faq">❓ Вопрос-ответ</a></li>
                         <li><a class="site-nav-link" href="#contact">📞 Контакты</a></li>
                     </ul> <a class="site-nav-cta" href="#catalog">🚗 Выбрать авто</a>
                 </div>
@@ -131,13 +133,10 @@
                         <h2 class="section-title reveal">Машины для любых маршрутов: от Сулакского каньона до деловых
                             встреч.</h2>
                     </div>
-                    <p class="section-text reveal">Арендованные автомобили остаются в этом же каталоге: вы сразу видите,
-                        что свободно сейчас, а что освободится по таймеру.</p>
+                    <p class="section-text reveal">Подберите авто по формату поездки, бюджету и категории — все актуальные варианты собраны в одном каталоге.</p>
                 </div>
-                <div class="catalog-grid"> <?php foreach ($cars as $car): ?>
-                    <?php $isRented = isCarRented($car); $minutesLeft = carMinutesLeft($car); ?> <article
-                        class="car-card glass reveal<?= $isRented ? ' is-rented' : '' ?>"
-                        <?= $isRented ? ' data-minutes="' . (string) $minutesLeft . '"' : '' ?>>
+                <div class="catalog-grid"> <?php foreach ($catalogPreviewCars as $car): ?>
+                    <article class="car-card glass reveal">
                         <div class="card-media"> <img src="<?= e((string) $car['image_url']) ?>"
                                 alt="<?= e((string) $car['name']) ?>">
                             <div class="card-badge"><?= e((string) $car['category']) ?></div>
@@ -148,12 +147,7 @@
                                     <h3 class="card-title"><?= e((string) $car['name']) ?></h3>
                                     <p class="card-subtitle"><?= e((string) $car['description']) ?></p>
                                 </div>
-                                <div class="rating">
-                                    <?= $isRented ? 'До ' . e(formatRentEnd((string) $car['rent_end_at'])) : '' ?>
-                                </div>
                             </div>
-                            <p class="rent-state<?= $isRented ? ' is-rented' : ' is-free' ?>">
-                                <?= $isRented ? '⏳ Сейчас в аренде' : '✅ Доступно к бронированию' ?> </p>
                             <div class="specs">
                                 <div class="spec"> <?= e(number_format((float) $car['engine_volume'], 1, '.', '')) ?> л
                                 </div>
@@ -162,40 +156,156 @@
                             </div>
                             <div class="card-footer">
                                 <div class="price-group"> <strong><?= e(formatPrice((int) $car['price_per_day'])) ?>
-                                        ₽</strong> <span>за сутки</span> </div> <button
-                                    class="rent-btn<?= $isRented ? ' is-disabled' : '' ?>" type="button"
-                                    <?= $isRented ? ' disabled' : '' ?>>
-                                    <?= $isRented ? '⏳ Сейчас арендован' : '📩 Забронировать' ?> </button>
+                                        ₽</strong> <span>за сутки</span> </div> <a class="rent-btn" href="<?= e($contacts['whatsapp_link']) ?>" target="_blank" rel="noopener">📩 Забронировать</a>
                             </div>
                         </div>
-                    </article> <?php endforeach; ?> </div> <?php if (count($cars) === 0): ?> <p class="section-text"
+                    </article> <?php endforeach; ?> </div> <?php if (count($catalogPreviewCars) === 0): ?> <p class="section-text"
                     style="margin-top:18px;">В базе пока нет автомобилей. Запустите database/setup_cars.php.</p>
                 <?php endif; ?>
+
+                <div class="catalog-more-wrap">
+                    <a class="btn" href="classes.asp">Посмотреть весь каталог (<?= e((string) $totalCarsCount) ?> шт.)</a>
+                </div>
             </div>
         </section>
-        <section class="section" id="contact">
+        <section class="section" id="reviews">
             <div class="container">
-                <div class="cta-box glass reveal">
+                <div class="section-head">
                     <div>
-                        <div class="eyebrow">💬 Связаться за 2 минуты</div>
-                        <h2>Поможем подобрать автомобиль под встречу, поездку, выходные или съемку 🚘</h2>
-                        <p> Если не хочется листать каталог самостоятельно, напишите или позвоните. Подскажем, что лучше
-                            взять под ваш маршрут, бюджет и нужный стиль подачи. </p>
-                        <div class="hero-actions"> <a class="btn" href="tel:<?= e($contacts['phone_href']) ?>">📞
-                                Позвонить</a> <a class="btn-secondary" href="<?= e($contacts['whatsapp_link']) ?>"
-                                target="_blank" rel="noopener">💬 WhatsApp</a> </div>
+                        <div class="eyebrow">📝 Отзывы с Яндекс Карт</div>
+                        <h2 class="section-title reveal">Реальные отзывы клиентов о сервисе.</h2>
                     </div>
-                    <aside class="contact-card">
-                        <div> <strong><?= e($contacts['phone']) ?></strong>
+                </div>
+
+                <div class="reviews-widget-shell glass reveal">
+                    <div class="reviews-widget-wrap">
+                        <?php if ($yandexReviewsSrc !== ''): ?>
+                        <iframe class="reviews-widget-frame" src="<?= e($yandexReviewsSrc) ?>" frameborder="0"
+                            loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                            title="Отзывы Яндекс Карт"></iframe>
+                        <?php else: ?>
+                        <p class="reviews-widget-hint">Укажите <code>widgets.yandex_reviews_src</code> в
+                            <code>config/config.php</code>, чтобы вывести отзывы.
+                        </p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="section" id="faq">
+            <div class="container">
+                <div class="section-head">
+                    <div>
+                        <div class="eyebrow">❓ Вопрос-ответ</div>
+                        <h2 class="section-title reveal">Частые вопросы перед бронированием.</h2>
+                    </div>
+                    <p class="section-text reveal">Если не нашли ответ, просто напишите нам в WhatsApp или Telegram:
+                        сориентируем по условиям под ваш маршрут и даты.</p>
+                </div>
+
+                <div class="faq-list">
+                    <details class="faq-item glass reveal">
+                        <summary>
+                            <span>Какие документы нужны для аренды автомобиля?</span>
+                            <span class="faq-icon" aria-hidden="true"></span>
+                        </summary>
+                        <p>Нужны паспорт и водительское удостоверение. Данные можно отправить заранее в мессенджер, чтобы
+                            на выдаче не тратить лишнее время.</p>
+                    </details>
+
+                    <details class="faq-item glass reveal">
+                        <summary>
+                            <span>Можно ли получить машину в аэропорту или у отеля?</span>
+                            <span class="faq-icon" aria-hidden="true"></span>
+                        </summary>
+                        <p>Да. Мы подаем автомобиль в аэропорт Уйташ, к вашему отелю или в удобную точку по городу в
+                            заранее согласованное время.</p>
+                    </details>
+
+                    <details class="faq-item glass reveal">
+                        <summary>
+                            <span>Есть ли залог и когда он возвращается?</span>
+                            <span class="faq-icon" aria-hidden="true"></span>
+                        </summary>
+                        <p>Размер залога зависит от класса автомобиля. После возврата машины и стандартной проверки
+                            состояния залог возвращается в оговоренный срок.</p>
+                    </details>
+
+                    <details class="faq-item glass reveal">
+                        <summary>
+                            <span>Страховка уже включена в аренду?</span>
+                            <span class="faq-icon" aria-hidden="true"></span>
+                        </summary>
+                        <p>Да, базовая страховка уже действует. По запросу подскажем варианты расширенной защиты под ваш
+                            формат поездки.</p>
+                    </details>
+
+                    <details class="faq-item glass reveal">
+                        <summary>
+                            <span>Как забронировать автомобиль?</span>
+                            <span class="faq-icon" aria-hidden="true"></span>
+                        </summary>
+                        <p>Выберите подходящую машину в каталоге и нажмите кнопку «Забронировать». Мы быстро уточним даты,
+                            стоимость и подтвердим бронь в мессенджере.</p>
+                    </details>
+
+                    <details class="faq-item glass reveal">
+                        <summary>
+                            <span>Есть ли ограничения по маршруту и пробегу?</span>
+                            <span class="faq-icon" aria-hidden="true"></span>
+                        </summary>
+                        <p>Для поездок по Дагестану ограничений обычно нет, но для дальних направлений лучше заранее
+                            согласовать маршрут. Мы сразу подскажем оптимальный тариф.</p>
+                    </details>
+
+                    <details class="faq-item glass reveal">
+                        <summary>
+                            <span>Можно ли продлить аренду, если планы изменились?</span>
+                            <span class="faq-icon" aria-hidden="true"></span>
+                        </summary>
+                        <p>Да, продление возможно при свободном графике автомобиля. Напишите нам заранее, и мы подтвердим
+                            новые сроки без лишней бюрократии.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+                <section class="section" id="contact">
+            <div class="container">
+                <div class="section-head">
+                    <div>
+                        <div class="eyebrow">📞 Контакты</div>
+                        <h2 class="section-title reveal">Свяжитесь с нами удобным способом, и мы быстро подберем авто под ваш маршрут.</h2>
+                    </div>
+                    <p class="section-text reveal">Подскажем по свободным моделям, стоимости, условиям выдачи и времени подачи в нужную локацию.</p>
+                </div>
+
+                <div class="contact-grid">
+                    <article class="contact-main glass reveal">
+                        <h3 class="contact-main-title">Поможем выбрать автомобиль под встречу, отдых или деловую поездку 🚘</h3>
+                        <p class="contact-main-text">Если не хочется самостоятельно сравнивать карточки, просто напишите нам. Уточним задачи, бюджет и формат поездки, после чего предложим оптимальные варианты из доступных сейчас.</p>
+
+                        <div class="contact-actions">
+                            <a class="btn" href="tel:<?= e($contacts['phone_href']) ?>">📞 Позвонить</a>
+                            <a class="btn-secondary" href="<?= e($contacts['whatsapp_link']) ?>" target="_blank" rel="noopener">💬 WhatsApp</a>
+                        </div>
+
+                        <div class="contact-chips">
+                            <span class="contact-chip">🕒 <?= e($contacts['work_time']) ?></span>
+                            <span class="contact-chip">📍 <?= e($contacts['address_short']) ?></span>
+                        </div>
+                    </article>
+
+                    <aside class="contact-panel glass reveal">
+                        <div class="contact-panel-head">
+                            <span class="contact-panel-label">На связи ежедневно</span>
+                            <strong><?= e($contacts['phone']) ?></strong>
                             <p><?= e($contacts['contact_note']) ?></p>
                         </div>
+
                         <div class="contact-list">
-                            <div class="contact-item">🕒 <?= e($contacts['work_time']) ?></div>
-                            <div class="contact-item">📍 <?= e($contacts['address_short']) ?></div>
-                            <div class="contact-item">💬 Telegram: <a href="<?= e($contacts['telegram_link']) ?>"
-                                    target="_blank" rel="noopener"><?= e($contacts['telegram']) ?></a> / WhatsApp: <a
-                                    href="<?= e($contacts['whatsapp_link']) ?>" target="_blank"
-                                    rel="noopener"><?= e($contacts['whatsapp']) ?></a></div>
+                            <div class="contact-item">📍 <?= e($contacts['address']) ?></div>
+                            <div class="contact-item">💬 Telegram: <a href="<?= e($contacts['telegram_link']) ?>" target="_blank" rel="noopener"><?= e($contacts['telegram']) ?></a></div>
+                            <div class="contact-item">💬 WhatsApp: <a href="<?= e($contacts['whatsapp_link']) ?>" target="_blank" rel="noopener"><?= e($contacts['whatsapp']) ?></a></div>
                         </div>
                     </aside>
                 </div>

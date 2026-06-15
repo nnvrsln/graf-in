@@ -122,7 +122,7 @@ export default function WelcomeView({ settings }: { settings: SiteSettings }) {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(15,13,11,.97) 0%, rgba(15,13,11,.72) 13%, rgba(15,13,11,.56) 34%, rgba(15,13,11,.82) 70%, rgba(15,13,11,.96) 100%), rgba(15,13,11,.3)",
+              "linear-gradient(180deg, rgba(15,13,11,.92) 0%, rgba(15,13,11,.55) 13%, rgba(15,13,11,.34) 34%, rgba(15,13,11,.66) 70%, rgba(15,13,11,.9) 100%), rgba(15,13,11,.12)",
           }}
         />
 

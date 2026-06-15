@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { cardImg, type Badge, type Category, type Dish } from "@/data/menu";
+import { heroImg, type Badge, type Category, type Dish } from "@/data/menu";
 import DishSheet from "./DishSheet";
 
 const badgeMeta: Record<Badge, { label: string; cls: string }> = {
@@ -194,49 +194,63 @@ export default function MenuView({ categories }: { categories: Category[] }) {
             {c.title}
           </h2>
 
-          {c.dishes.map((d) => (
-            <button
-              key={d.name}
-              type="button"
-              onClick={() => setSelected(d)}
-              className="grid w-full grid-cols-[1fr_78px] items-start gap-4 border-t border-ink/10 py-4 text-left transition-opacity first:border-t-0 active:opacity-70"
-            >
-              <div className="min-w-0">
-                <div className="flex items-baseline">
-                  <span className="font-display text-[17px] font-semibold leading-tight">
-                    {d.name}
-                  </span>
-                  <span className="mx-2.5 -translate-y-[3px] flex-1 border-b border-dotted border-brass/35" />
-                  <span className="whitespace-nowrap text-[15px] font-bold tabular-nums text-ink">
-                    {d.price}
-                  </span>
-                </div>
-                <p className="mt-1.5 max-w-[96%] text-[12.5px] leading-relaxed text-muted">
-                  {d.desc}
-                </p>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-col gap-7">
+            {c.dishes.map((d) => (
+              <button
+                key={d.name}
+                type="button"
+                onClick={() => setSelected(d)}
+                className="group block w-full text-left transition-opacity active:opacity-80"
+              >
+                {/* Крупное фото 4:3 на всю ширину */}
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[14px] bg-paper-2 shadow-[0_14px_34px_-18px_rgba(33,29,23,0.6)] ring-1 ring-ink/[0.08]">
+                  {d.photo ? (
+                    <Image
+                      src={heroImg(d.photo)}
+                      alt={d.name}
+                      fill
+                      sizes="100vw"
+                      className="object-cover transition-transform duration-300 group-active:scale-[1.03]"
+                    />
+                  ) : (
+                    // Плейсхолдер для блюд без фото — латунный знак на бумаге-2
+                    <div
+                      aria-hidden
+                      className="flex h-full w-full items-center justify-center"
+                    >
+                      <div className="h-[44%] bg-brass/30" style={znakMask} />
+                    </div>
+                  )}
                   {d.badge && (
                     <span
-                      className={`rounded-full border px-2.5 py-[3px] text-[8px] font-bold uppercase tracking-[0.16em] ${badgeMeta[d.badge].cls}`}
+                      className={`absolute left-3 top-3 rounded-full border px-2.5 py-[4px] text-[8px] font-bold uppercase tracking-[0.16em] backdrop-blur-sm ${badgeMeta[d.badge].cls}`}
                     >
                       {badgeMeta[d.badge].label}
                     </span>
                   )}
-                  <span className="text-[9px] font-medium uppercase tracking-[0.12em] text-[#8f8678]">
-                    {d.weight}
+                </div>
+
+                {/* Название с точками-выноской до цены */}
+                <div className="mt-3 flex items-baseline">
+                  <span className="font-display text-[18px] font-semibold leading-tight">
+                    {d.name}
+                  </span>
+                  <span className="mx-2.5 -translate-y-[3px] flex-1 border-b border-dotted border-brass/35" />
+                  <span className="whitespace-nowrap text-[16px] font-bold tabular-nums text-ink">
+                    {d.price}
                   </span>
                 </div>
-              </div>
 
-              <Image
-                src={cardImg(d.photo)}
-                alt={d.name}
-                width={156}
-                height={156}
-                className="h-[78px] w-[78px] rounded-[7px] object-cover shadow-[0_6px_18px_-9px_rgba(33,29,23,0.55)] ring-1 ring-ink/[0.08]"
-              />
-            </button>
-          ))}
+                <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                  {d.desc}
+                </p>
+
+                <div className="mt-2 text-[9px] font-medium uppercase tracking-[0.12em] text-[#8f8678]">
+                  {d.weight}
+                </div>
+              </button>
+            ))}
+          </div>
         </section>
       ))}
 

@@ -6,6 +6,52 @@ import Link from "next/link";
 import type { Category } from "@/data/menu";
 import { saveDish } from "./actions";
 
+// Сжимаем/уменьшаем фото прямо в браузере до отправки в server action.
+// Иначе фото с телефона (2–8 MB) превышает лимит тела запроса Next/Vercel
+// и сохранение падает с 500. Уменьшаем до 1600px по длинной стороне и жмём в JPEG.
+async function compressImage(
+  file: File,
+  maxDim = 1600,
+  quality = 0.82,
+): Promise<File> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
+
+  const img = document.createElement("img");
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("decode failed"));
+    img.src = dataUrl;
+  });
+
+  let width = img.naturalWidth;
+  let height = img.naturalHeight;
+  if (width > maxDim || height > maxDim) {
+    const scale = Math.min(maxDim / width, maxDim / height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", quality),
+  );
+  if (!blob) return file;
+
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+  return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+}
+
 type DishData = {
   id?: string;
   name?: string;
@@ -54,6 +100,7 @@ export default function DishForm({
 }) {
   const [preview, setPreview] = useState<string | null>(dish?.photo ?? null);
   const [pending, setPending] = useState(false);
+  const [compressing, setCompressing] = useState(false);
 
   return (
     <form
@@ -181,15 +228,35 @@ export default function DishForm({
               )}
             </div>
             <label className="block cursor-pointer rounded-[8px] border border-dashed border-black/15 px-3 py-2.5 text-center text-[12.5px] text-brass transition-colors hover:border-brass/50 hover:bg-paper/40">
-              {preview ? "Заменить фото" : "Загрузить фото"}
+              {compressing
+                ? "Обработка фото…"
+                : preview
+                  ? "Заменить фото"
+                  : "Загрузить фото"}
               <input
                 type="file"
                 name="photo"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setPreview(URL.createObjectURL(file));
+                onChange={async (e) => {
+                  const input = e.target;
+                  const file = input.files?.[0];
+                  if (!file) return;
+                  setCompressing(true);
+                  try {
+                    const compressed = await compressImage(file);
+                    // Подменяем содержимое инпута сжатым файлом, чтобы форма
+                    // отправила именно его (а не тяжёлый оригинал).
+                    const dt = new DataTransfer();
+                    dt.items.add(compressed);
+                    input.files = dt.files;
+                    setPreview(URL.createObjectURL(compressed));
+                  } catch {
+                    // Не смогли сжать (напр. неподдерживаемый формат) — шлём как есть.
+                    setPreview(URL.createObjectURL(file));
+                  } finally {
+                    setCompressing(false);
+                  }
                 }}
               />
             </label>
@@ -244,10 +311,16 @@ export default function DishForm({
         </Link>
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || compressing}
           className="rounded-[8px] bg-ink px-7 py-2.5 text-[13px] font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Сохранение…" : dish?.id ? "Сохранить" : "Добавить блюдо"}
+          {compressing
+            ? "Обработка фото…"
+            : pending
+              ? "Сохранение…"
+              : dish?.id
+                ? "Сохранить"
+                : "Добавить блюдо"}
         </button>
       </div>
     </form>
